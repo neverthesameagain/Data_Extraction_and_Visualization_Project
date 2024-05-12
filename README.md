@@ -73,4 +73,4 @@ Feel free to contribute to this repository by forking it and creating pull reque
 
 ## Submission
 
-Once complete to hi@lamarr.tech with the Github link.
+Once complete drop a mail to hi@lamarr.tech with the Github link.

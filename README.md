@@ -52,14 +52,11 @@ cd Data_Analyst_Intern_Assessment
 supremo.py
 ```
 
-3. Complete the TODO section in the script. You need to create a new function to save all the extracted tables in Excel format.
-4. Run the script.
+3. Run the script.
 
 ```bash
 python supremo.py
 ```
-
-5. Verify that the tables are saved in Excel format in the `tables` folder.
 
 ## Files
 
@@ -70,7 +67,3 @@ python supremo.py
 ## Contributing
 
 Feel free to contribute to this repository by forking it and creating pull requests with your changes.
-
-## Submission
-
-Once complete drop a mail to hi@lamarr.tech with the Github link.

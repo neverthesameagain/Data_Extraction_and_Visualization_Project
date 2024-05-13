@@ -22,12 +22,12 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
+#Creating the Service object
+service = Service(ChromeDriverManager().install())
 
+#Defining the service driver
 options = webdriver.ChromeOptions()
-# options.add_argument("--headless=false")
-
 driver = webdriver.Chrome(service=service, options=options)
-
 
 main_url = 'https://supremo.nic.in/KnowYourOfficerIAS.aspx'
 driver.get(main_url)
@@ -64,20 +64,75 @@ if not os.path.exists('tables'):
     os.makedirs('tables')
 
 
-def extract_table(a):
+import pandas as pd
+from selenium.webdriver.common.by import By
+
+def extract_table(driver, a):
     try:
         a.click()
         driver.switch_to.window(driver.window_handles[1])
-        table = driver.find_elements(By.TAG_NAME, "table")
-        table_html = table.get_attribute('outerHTML')
-
-        # Save the table as an HTML file
-        table_index = len(os.listdir('tables')) + 1
-        with open(f'tables/table_{table_index}.html', 'w', encoding='utf-8') as f:
-            f.write(table_html)
+        table = driver.find_element(By.TAG_NAME, "table")
+        
+        #Converting table to DataFrame
+        df = pd.read_html(table.get_attribute('outerHTML'))[0]
+        
+        #Drop rows and columns with all null values
+        df.dropna(axis=0, how='all', inplace=True)
+        df.dropna(axis=1, how='all', inplace=True)
+        
+        return df
+                
     finally:
         driver.close()
         driver.switch_to.window(driver.window_handles[0])
+
+import os
+import pandas as pd
+from bs4 import BeautifulSoup
+def save_tables_to_excel(html_files_dir, output_dir):
+    #output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    #working on HTML files in the directory
+    for filename in os.listdir(html_files_dir):
+        if filename.endswith('.html'):
+            filepath = os.path.join(html_files_dir, filename)
+            #reading the file
+            with open(filepath, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+
+            # Parsing the HTML content
+            soup = BeautifulSoup(html_content, 'html.parser')
+
+            # Finding all tables in the HTML file
+            tables = soup.find_all('table')
+
+            #convert each table to a DataFrame
+            for i, table in enumerate(tables):
+                df = pd.read_html(str(table))[0]  # Assuming the first table is the relevant one
+
+                # Drop rows and columns with all null values
+                df.dropna(axis=0, how='all', inplace=True)
+                df.dropna(axis=1, how='all', inplace=True)
+
+                #Converting MultiIndex columns to regular columns
+                df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in df.columns.values]
+
+                #Save the DataFrame to Excel 
+                output_filename = f"{filename.split('.')[0]}_table_{i + 1}"
+                if output_format == 'excel':
+                    df.to_excel(os.path.join(output_dir, f"{output_filename}.xlsx"), index=False)
+                else:
+                    print("Invalid output format specified. Please choose 'excel' or 'csv'.")
+
+html_files_dir = 'tables'
+output_dir = 'tables'
+output_format = 'excel'
+
+save_tables_to_excel(html_files_dir, output_dir)
+
+
 
 
 for a in a_tags:

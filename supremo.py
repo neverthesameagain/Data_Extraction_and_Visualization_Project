@@ -1,37 +1,19 @@
-# %%
-import concurrent.futures
-import csv
-import json
+# Import necessary libraries
 import os
-import queue
-import sys
-import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
-
 import pandas as pd
-import pg8000
-import psycopg2
 from bs4 import BeautifulSoup
-from psycopg2.extras import RealDictCursor
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-#Creating the Service object
-service = Service(ChromeDriverManager().install())
 
-#Defining the service driver
+service = Service(ChromeDriverManager().install())
 options = webdriver.ChromeOptions()
 driver = webdriver.Chrome(service=service, options=options)
 
 main_url = 'https://supremo.nic.in/KnowYourOfficerIAS.aspx'
 driver.get(main_url)
-
 
 driver.find_element(By.CLASS_NAME, 'chosen-choices').click()
 ul = driver.find_element(By.CLASS_NAME, 'chosen-results')
@@ -45,95 +27,88 @@ for i in range(0, len(li)):
     li[i].click()
     break
 
-
 button = driver.find_element(By.CSS_SELECTOR, '#btnSubmit')
 button.click()
 
-
+driver.implicitly_wait(10)
 tr_tags = driver.find_elements(By.TAG_NAME, 'tr')[1:]
 a_tags = [tr.find_element(By.TAG_NAME, 'a') for tr in tr_tags]
 
-print(a_tags)
-
-
-# Set an implicit wait for the driver
-driver.implicitly_wait(10)
-
-# Create a directory to save the tables
 if not os.path.exists('tables'):
     os.makedirs('tables')
 
+def extract_info_from_html(html_content):
+    soup = BeautifulSoup(html_content, 'html.parser')
+    person_data = {}
+    
+    name_tag = soup.find('td', {'class': 'vertical_col_data'})
+    person_data['Name'] = name_tag.text.strip() if name_tag else 'N/A'
+    
+    rows = soup.find_all('tr')
+    for row in rows:
+        cols = row.find_all('td')
+        if len(cols) == 2:
+            key = cols[0].text.strip().replace(' :', '')
+            value = cols[1].text.strip()
+            person_data[key] = value
+    
+    experience_table = soup.find('table', {'id': 'rounded-cornerA'})
+    if experience_table:
+        experience_rows = experience_table.find_all('tr')[2:]  # Skip header
+        experiences = []
+        for exp_row in experience_rows:
+            exp_cols = exp_row.find_all('td')
+            if len(exp_cols) >= 6:
+                experience = {
+                    'Designation/Level': exp_cols[1].text.strip(),
+                    'Ministry/Department/Office/Location': exp_cols[2].text.strip(),
+                    'Organisation': exp_cols[3].text.strip(),
+                    'Experience(major/minor)': exp_cols[4].text.strip(),
+                    'Period(From/To)': exp_cols[5].text.strip(),
+                }
+                experiences.append(experience)
+        person_data['Experiences'] = experiences
+    
+    return person_data
 
-import pandas as pd
-from selenium.webdriver.common.by import By
+combined_data = []
 
-def extract_table(driver, a):
+for a in a_tags:
     try:
         a.click()
         driver.switch_to.window(driver.window_handles[1])
-        table = driver.find_element(By.TAG_NAME, "table")
-        
-        #Converting table to DataFrame
-        df = pd.read_html(table.get_attribute('outerHTML'))[0]
-        
-        #Drop rows and columns with all null values
-        df.dropna(axis=0, how='all', inplace=True)
-        df.dropna(axis=1, how='all', inplace=True)
-        
-        return df
+        time.sleep(2)  
+
+        # Extract the HTML content and parse it
+        html_content = driver.page_source
+        person_data = extract_info_from_html(html_content)
+        combined_data.append(person_data)
                 
     finally:
         driver.close()
         driver.switch_to.window(driver.window_handles[0])
 
-import os
-import pandas as pd
-from bs4 import BeautifulSoup
-def save_tables_to_excel(html_files_dir, output_dir):
-    #output directory if it doesn't exist
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+for person in combined_data:
+    experiences = person.pop('Experiences', [])
+    for idx, exp in enumerate(experiences):
+        for key, value in exp.items():
+            person[f'Experience_{idx + 1}_{key}'] = value
 
-    #working on HTML files in the directory
-    for filename in os.listdir(html_files_dir):
-        if filename.endswith('.html'):
-            filepath = os.path.join(html_files_dir, filename)
-            #reading the file
-            with open(filepath, 'r', encoding='utf-8') as file:
-                html_content = file.read()
+df = pd.DataFrame(combined_data)
 
-            # Parsing the HTML content
-            soup = BeautifulSoup(html_content, 'html.parser')
-
-            # Finding all tables in the HTML file
-            tables = soup.find_all('table')
-
-            #convert each table to a DataFrame
-            for i, table in enumerate(tables):
-                df = pd.read_html(str(table))[0]  # Assuming the first table is the relevant one
-
-                # Drop rows and columns with all null values
-                df.dropna(axis=0, how='all', inplace=True)
-                df.dropna(axis=1, how='all', inplace=True)
-
-                #Converting MultiIndex columns to regular columns
-                df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in df.columns.values]
-
-                #Save the DataFrame to Excel 
-                output_filename = f"{filename.split('.')[0]}_table_{i + 1}"
-                if output_format == 'excel':
-                    df.to_excel(os.path.join(output_dir, f"{output_filename}.xlsx"), index=False)
-                else:
-                    print("Invalid output format specified. Please choose 'excel' or 'csv'.")
-
-html_files_dir = 'tables'
 output_dir = 'tables'
-output_format = 'excel'
+if not os.path.exists(output_dir):
+    os.makedirs(output_dir)
 
-save_tables_to_excel(html_files_dir, output_dir)
+output_format = 'excel'  
+output_filename = os.path.join(output_dir, 'combined_data.xlsx') if output_format == 'excel' else os.path.join(output_dir, 'combined_data.csv')
 
+if output_format == 'excel':
+    df.to_excel(output_filename, index=False)
+else:
+    df.to_csv(output_filename, index=False)
 
+print(f"Data saved to {output_filename}")
 
-
-for a in a_tags:
-    extract_table(a)
+# Close the driver
+driver.quit()

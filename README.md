@@ -1,14 +1,14 @@
-# Data Analyst Intern Assessment
+
+# Data Extraction and Visualization Project
 
 ## Introduction
 
-This repository contains the code and resources for the Data Analyst Intern Assessment. The assessment task involves completing a function to save extracted tables in Excel or CSV format from provided HTML files.
-It's recommended to properly analyze the html file to understand what data needs to be saved. Ensure to sanitize all the inputs and drop any null values to maintain a coherent database structure.
+This repository contains the code and resources for a project focused on extracting tables from HTML files and saving them in Excel or CSV format. The task involves analyzing HTML files to understand the data structure, sanitizing inputs, and dropping null values to maintain a coherent database.
 
-The goal is to extract the data such that it can be used for data visualization purposes including:
+The goal is to extract data for use in various data visualization purposes, including:
 
 - Single entity visualization
-- Multiple entity relationship visualization (how two entities are related, like two people working in the same department during the same time)
+- Multiple entity relationship visualization (e.g., two people working in the same department during the same time)
 
 ## Prerequisites
 
@@ -43,7 +43,7 @@ git clone <repository_url>
 1. Navigate to the project directory.
 
 ```bash
-cd Data_Analyst_Intern_Assessment
+cd Data_Extraction_and_Visualization_Project
 ```
 
 2. Open the Python script containing the code.
@@ -60,9 +60,9 @@ python supremo.py
 
 ## Files
 
-- `supremo.py`: Contains the main Python script for the assessment.
+- `supremo.py`: Contains the main Python script for the project.
 - `tables/`: Directory containing sample HTML files of extracted tables.
-- `README.md`: This file, providing instructions and information about the assessment.
+- `README.md`: This file, providing instructions and information about the project.
 
 ## Contributing
 
